@@ -6,7 +6,7 @@ module.exports = {
     index: `./src/index.js`,
   },
   output: {
-    path: path.resolve(__dirname, "dist"),
+    path: path.resolve(__dirname, "public", "dist"),
     filename: "[name].js",
   },
   module: {
@@ -25,7 +25,7 @@ module.exports = {
   },
   devtool: "inline-source-map",
   devServer: {
-    contentBase: ".",
+    contentBase: "./public",
     publicPath: "/dist",
   },
 };
