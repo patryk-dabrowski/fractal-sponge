@@ -5,9 +5,10 @@ import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 
 let renderer, camera, scene, stats;
 
-// Create the menger sponge and center it (kind of) on the page
-let parent;
+let cubeContainer;
 
+const showAxes = false;
+let isNormalCube = true;
 let level = 0;
 const MAX_LEVEL = 3;
 const MIN_LEVEL = 0;
@@ -15,27 +16,45 @@ const MIN_LEVEL = 0;
 const params = {
   increaseLevel: increaseLevel,
   decreaseLevel: decreaseLevel,
+  normal: normalMengerSponge,
 };
 
-function box(x, y, z, d) {
-  var geometry = new THREE.BoxGeometry(d, d, d);
-  var material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
-  var cube = new THREE.Mesh(geometry, material);
+function getSize(d, i) {
+  if (isNormalCube) {
+    return d / 3;
+  }
+  return d / (i <= 0 ? 2 : 4);
+}
+
+function box(x, y, z, xd, yd, zd) {
+  let geometry = new THREE.BoxGeometry(xd, yd, zd);
+  let material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+  let cube = new THREE.Mesh(geometry, material);
 
   cube.position.set(x, y, z);
   return cube;
 }
 
-function menger(n, x, y, z, d) {
+function menger(n, x, y, z, xd, yd, zd) {
   if (n === 0) {
-    parent.add(box(x, y, z, d));
+    cubeContainer.add(box(x, y, z, xd, yd, zd));
   } else {
     for (let i = -1; i < 2; i++) {
       for (let j = -1; j < 2; j++) {
         for (let k = -1; k < 2; k++) {
           if ((i * i + j * j) * (i * i + k * k) * (j * j + k * k) > 0) {
-            const newD = d / 3;
-            menger(n - 1, x + i * newD, y + j * newD, z + k * newD, newD);
+            const newxd = getSize(xd, i);
+            const newyd = getSize(yd, j);
+            const newzd = getSize(zd, k);
+            menger(
+              n - 1,
+              x + i * newxd,
+              y + j * newyd,
+              z + k * newzd,
+              newxd,
+              newyd,
+              newzd
+            );
           }
         }
       }
@@ -44,8 +63,8 @@ function menger(n, x, y, z, d) {
 }
 
 function regenerateMenger() {
-  parent.remove(...parent.children);
-  menger(level, 0, 0, 0, 80);
+  cubeContainer.remove(...cubeContainer.children);
+  menger(level, 0, 0, 0, 80, 80, 80);
 }
 
 function increaseLevel() {
@@ -61,15 +80,19 @@ function decreaseLevel() {
   }
 }
 
+function normalMengerSponge() {
+  isNormalCube = !isNormalCube;
+  regenerateMenger();
+}
+
 function init() {
-  // Setup
   camera = new THREE.PerspectiveCamera(
     70,
     window.innerWidth / window.innerHeight,
     1,
     1000
   );
-  camera.position.z = 200;
+  camera.position.set(0, 0, 200);
   camera.lookAt(0, 0, 0);
 
   scene = new THREE.Scene();
@@ -81,14 +104,18 @@ function init() {
   light.position.set(-1, -1.5, -1);
   scene.add(light);
 
-  parent = new THREE.Group();
-  scene.add(parent);
+  if (showAxes) {
+    const axesHelper = new THREE.AxesHelper(1000);
+    scene.add(axesHelper);
+  }
 
-  menger(level, 0, 0, 0, 80);
+  cubeContainer = new THREE.Group();
+  scene.add(cubeContainer);
 
-  // Renderer
+  menger(level, 0, 0, 0, 80, 80, 80);
+
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setClearColor(0xe6e6ee);
+  // renderer.setClearColor(0xe6e6ee);
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
@@ -101,6 +128,7 @@ function init() {
   const gui = new GUI();
   gui.add(params, "increaseLevel").name("Zwiększ poziom");
   gui.add(params, "decreaseLevel").name("Zmniejsz poziom");
+  gui.add(params, "normal").name("Zmień rodzaj");
 
   window.addEventListener("resize", onWindowsResize, false);
 }
@@ -108,9 +136,9 @@ function init() {
 function animate() {
   requestAnimationFrame(animate);
 
-  parent.rotation.x += 0.005;
-  parent.rotation.y += 0.001;
-  parent.rotation.z += 0.001;
+  cubeContainer.rotation.x += 0.005;
+  cubeContainer.rotation.y += 0.001;
+  cubeContainer.rotation.z += 0.001;
   renderer.render(scene, camera);
 
   stats.update();
