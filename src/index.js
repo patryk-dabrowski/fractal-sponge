@@ -28,21 +28,11 @@ const params = {
   changeToJeruzalem: changeToJeruzalem,
   level: 1,
   currendSettings: MENGER_SPONGE_SETTINGS,
-
-  // Background Color
-  bgColorRed: 0,
-  bgColorGreen: 0,
-  bgColorBlue: 0,
-
-  // Light Top Color
-  lightTopColorRed: 255,
-  lightTopColorGreen: 0,
-  lightTopColorBlue: 0,
-
-  // Light Bottom Color
-  lightBottomColorRed: 0,
-  lightBottomColorGreen: 0,
-  lightBottomColorBlue: 255,
+  invert: false,
+  randomly: true,
+  bgColor: 0x000000,
+  lightTopColor: 0xff0000,
+  lightBottomColor: 0x0000ff,
 };
 
 init();
@@ -101,7 +91,10 @@ function generateCube(geom, n, x, y, z, xd, yd, zd) {
       for (let j = -range; j <= range; j++) {
         for (let k = -range; k <= range; k++) {
           const cond = (i * i + j * j) * (i * i + k * k) * (j * j + k * k);
-          if (condition(cond)) {
+          if (
+            (!params.invert && condition(cond)) ||
+            (params.invert && !condition(cond))
+          ) {
             const newxd = xd / parts;
             const newyd = yd / parts;
             const newzd = zd / parts;
@@ -109,7 +102,7 @@ function generateCube(geom, n, x, y, z, xd, yd, zd) {
             const newY = y + j * newyd;
             const newZ = z + k * newzd;
 
-            if (Math.random() > 0.5) {
+            if (Math.random() > 0.5 || !params.randomly) {
               generateCube(geom, n - 1, newX, newY, newZ, newxd, newyd, newzd);
             } else {
               geom.mergeMesh(box(newX, newY, newZ, newxd, newyd, newzd));
@@ -126,10 +119,9 @@ function generate() {
     canGenerate = false;
     const geom = new THREE.Geometry();
     const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+    const mesh = new THREE.Mesh(geom, material);
 
     generateCube(geom, params.level, 0, 0, 0, 80, 80, 80);
-
-    const mesh = new THREE.Mesh(geom, material);
 
     cubeContainer.remove(...cubeContainer.children);
     cubeContainer.add(mesh);
@@ -161,8 +153,8 @@ function createScene() {
 }
 function createLight() {
   light = new THREE.HemisphereLight();
-  light.groundColor.setStyle(`rgb(0, 0, 255)`);
-  light.color.setStyle(`rgb(255, 0, 0)`);
+  light.color.setHex(params.lightTopColor);
+  light.groundColor.setHex(params.lightBottomColor);
   light.position.set(-1, 1.5, 1);
   scene.add(light);
 }
@@ -202,11 +194,11 @@ function createPanel() {
   const panel = new GUI();
   const additionalPanel = panel.addFolder("");
   const typePanel = panel.addFolder("Types");
-  const bgPanel = panel.addFolder("Background color");
-  const lightTopPanel = panel.addFolder("Light top");
-  const lightBottomPanel = panel.addFolder("Light bottom");
+  const colorPanel = panel.addFolder("Background color");
 
   additionalPanel.add(params, "regenerate").name("Regenerate");
+  additionalPanel.add(params, "invert").name("Invert").onChange(generate);
+  additionalPanel.add(params, "randomly").name("Randomly").onChange(generate);
   additionalPanel
     .add(params, "level", 0, 3, 1)
     .name("Level")
@@ -229,63 +221,34 @@ function createPanel() {
       }, 300);
     });
 
-  bgPanel.add(params, "bgColorRed", 0, 255, 1).name("Red").onChange(setBgColor);
-  bgPanel
-    .add(params, "bgColorGreen", 0, 255, 1)
-    .name("Green")
-    .onChange(setBgColor);
-  bgPanel
-    .add(params, "bgColorBlue", 0, 255, 1)
-    .name("Blue")
+  colorPanel
+    .addColor(params, "bgColor")
+    .name("Background")
     .onChange(setBgColor);
 
-  lightTopPanel
-    .add(params, "lightTopColorRed", 0, 255, 1)
-    .name("Red")
-    .onChange(setTopLightColor);
-  lightTopPanel
-    .add(params, "lightTopColorGreen", 0, 255, 1)
-    .name("Green")
-    .onChange(setTopLightColor);
-  lightTopPanel
-    .add(params, "lightTopColorBlue", 0, 255, 1)
-    .name("Blue")
+  colorPanel
+    .addColor(params, "lightTopColor")
+    .name("Top light")
     .onChange(setTopLightColor);
 
-  lightBottomPanel
-    .add(params, "lightBottomColorRed", 0, 255, 1)
-    .name("Red")
-    .onChange(setBottomLightColor);
-  lightBottomPanel
-    .add(params, "lightBottomColorGreen", 0, 255, 1)
-    .name("Green")
-    .onChange(setBottomLightColor);
-  lightBottomPanel
-    .add(params, "lightBottomColorBlue", 0, 255, 1)
-    .name("Blue")
+  colorPanel
+    .addColor(params, "lightBottomColor")
+    .name("Bottom light")
     .onChange(setBottomLightColor);
 
   additionalPanel.open();
   typePanel.open();
-  bgPanel.open();
-  lightTopPanel.open();
-  lightBottomPanel.open();
+  colorPanel.open();
 }
 
 function setBgColor() {
-  renderer.setClearColor(
-    `rgb(${params.bgColorRed}, ${params.bgColorGreen}, ${params.bgColorBlue})`
-  );
+  renderer.setClearColor(params.bgColor);
 }
 
 function setTopLightColor() {
-  light.color.setStyle(
-    `rgb(${params.lightTopColorRed}, ${params.lightTopColorGreen}, ${params.lightTopColorBlue})`
-  );
+  light.color.setHex(params.lightTopColor);
 }
 
 function setBottomLightColor() {
-  light.groundColor.setStyle(
-    `rgb(${params.lightBottomColorRed}, ${params.lightBottomColorGreen}, ${params.lightBottomColorBlue})`
-  );
+  light.groundColor.setHex(params.lightBottomColor);
 }
