@@ -27,5 +27,6 @@ module.exports = {
   devServer: {
     contentBase: "./public",
     publicPath: "/dist",
+    watchContentBase: true
   },
 };

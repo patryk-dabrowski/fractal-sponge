@@ -27,17 +27,17 @@ function getSize(d, i) {
 }
 
 function box(x, y, z, xd, yd, zd) {
-  let geometry = new THREE.BoxGeometry(xd, yd, zd);
-  let material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
-  let cube = new THREE.Mesh(geometry, material);
+  const geometry = new THREE.BoxGeometry(xd, yd, zd);
+  const cube = new THREE.Mesh(geometry);
 
   cube.position.set(x, y, z);
   return cube;
 }
 
-function menger(n, x, y, z, xd, yd, zd) {
+function menger(geom, n, x, y, z, xd, yd, zd) {
   if (n === 0) {
-    cubeContainer.add(box(x, y, z, xd, yd, zd));
+    // Merge boxes to improve performence
+    geom.mergeMesh(box(x, y, z, xd, yd, zd));
   } else {
     for (let i = -1; i < 2; i++) {
       for (let j = -1; j < 2; j++) {
@@ -47,6 +47,7 @@ function menger(n, x, y, z, xd, yd, zd) {
             const newyd = getSize(yd, j);
             const newzd = getSize(zd, k);
             menger(
+              geom,
               n - 1,
               x + i * newxd,
               y + j * newyd,
@@ -62,27 +63,34 @@ function menger(n, x, y, z, xd, yd, zd) {
   }
 }
 
-function regenerateMenger() {
+function generateMenger() {
+  const geom = new THREE.Geometry();
+  const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+
+  menger(geom, level, 0, 0, 0, 80, 80, 80);
+
+  const mesh = new THREE.Mesh(geom, material);
+
   cubeContainer.remove(...cubeContainer.children);
-  menger(level, 0, 0, 0, 80, 80, 80);
+  cubeContainer.add(mesh);
 }
 
 function increaseLevel() {
   if (level < MAX_LEVEL) {
     level++;
-    regenerateMenger();
+    generateMenger();
   }
 }
 function decreaseLevel() {
   if (level > MIN_LEVEL) {
     level--;
-    regenerateMenger();
+    generateMenger();
   }
 }
 
 function normalMengerSponge() {
   isNormalCube = !isNormalCube;
-  regenerateMenger();
+  generateMenger();
 }
 
 function init() {
@@ -112,7 +120,7 @@ function init() {
   cubeContainer = new THREE.Group();
   scene.add(cubeContainer);
 
-  menger(level, 0, 0, 0, 80, 80, 80);
+  generateMenger();
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   // renderer.setClearColor(0xe6e6ee);
