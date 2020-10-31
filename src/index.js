@@ -10,9 +10,24 @@ let cubeContainer;
 let canGenerate = true;
 const showAxes = true;
 
+const MENGER_SPONGE_SETTINGS = {
+  range: 1,
+  parts: 3,
+  condition: (cond) => cond > 0,
+};
+
+const JERUZALEM_CUBE_SETTINGS = {
+  range: 2,
+  parts: 5,
+  condition: (cond) => cond > 20 || cond === 8,
+};
+
 const params = {
-  regenerate: generateMenger,
-  level: 0,
+  regenerate: generate,
+  changeToMenger: changeToMenger,
+  changeToJeruzalem: changeToJeruzalem,
+  level: 1,
+  currendSettings: MENGER_SPONGE_SETTINGS,
 
   // Background Color
   bgColorRed: 0,
@@ -44,7 +59,7 @@ function init() {
   createStats();
   createPanel();
 
-  generateMenger();
+  generate();
 
   window.addEventListener("resize", onWindowsResize, false);
 }
@@ -75,24 +90,27 @@ function box(x, y, z, xd, yd, zd) {
   return cube;
 }
 
-function menger(geom, n, x, y, z, xd, yd, zd) {
+function generateCube(geom, n, x, y, z, xd, yd, zd) {
   if (n === 0) {
     // Merge boxes to improve performence
     geom.mergeMesh(box(x, y, z, xd, yd, zd));
   } else {
-    for (let i = -1; i < 2; i++) {
-      for (let j = -1; j < 2; j++) {
-        for (let k = -1; k < 2; k++) {
-          if ((i * i + j * j) * (i * i + k * k) * (j * j + k * k) > 0) {
-            const newxd = xd / 3;
-            const newyd = yd / 3;
-            const newzd = zd / 3;
+    const { range, parts, condition } = params.currendSettings;
+
+    for (let i = -range; i <= range; i++) {
+      for (let j = -range; j <= range; j++) {
+        for (let k = -range; k <= range; k++) {
+          const cond = (i * i + j * j) * (i * i + k * k) * (j * j + k * k);
+          if (condition(cond)) {
+            const newxd = xd / parts;
+            const newyd = yd / parts;
+            const newzd = zd / parts;
             const newX = x + i * newxd;
             const newY = y + j * newyd;
             const newZ = z + k * newzd;
 
             if (Math.random() > 0.5) {
-              menger(geom, n - 1, newX, newY, newZ, newxd, newyd, newzd);
+              generateCube(geom, n - 1, newX, newY, newZ, newxd, newyd, newzd);
             } else {
               geom.mergeMesh(box(newX, newY, newZ, newxd, newyd, newzd));
             }
@@ -103,13 +121,13 @@ function menger(geom, n, x, y, z, xd, yd, zd) {
   }
 }
 
-function generateMenger() {
+function generate() {
   if (canGenerate) {
     canGenerate = false;
     const geom = new THREE.Geometry();
     const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
 
-    menger(geom, params.level, 0, 0, 0, 80, 80, 80);
+    generateCube(geom, params.level, 0, 0, 0, 80, 80, 80);
 
     const mesh = new THREE.Mesh(geom, material);
 
@@ -117,6 +135,14 @@ function generateMenger() {
     cubeContainer.add(mesh);
     canGenerate = true;
   }
+}
+
+function changeToMenger() {
+  params.currendSettings = MENGER_SPONGE_SETTINGS;
+}
+
+function changeToJeruzalem() {
+  params.currendSettings = JERUZALEM_CUBE_SETTINGS;
 }
 
 function createCamera() {
@@ -175,6 +201,7 @@ function createStats() {
 function createPanel() {
   const panel = new GUI();
   const additionalPanel = panel.addFolder("");
+  const typePanel = panel.addFolder("Types");
   const bgPanel = panel.addFolder("Background color");
   const lightTopPanel = panel.addFolder("Light top");
   const lightBottomPanel = panel.addFolder("Light bottom");
@@ -183,7 +210,24 @@ function createPanel() {
   additionalPanel
     .add(params, "level", 0, 3, 1)
     .name("Level")
-    .onChange(generateMenger);
+    .onChange(generate);
+
+  typePanel
+    .add(params, "changeToMenger")
+    .name("Menger sponge")
+    .onChange(() => {
+      setTimeout(() => {
+        generate();
+      }, 300);
+    });
+  typePanel
+    .add(params, "changeToJeruzalem")
+    .name("Jeruzalem cube")
+    .onChange(() => {
+      setTimeout(() => {
+        generate();
+      }, 300);
+    });
 
   bgPanel.add(params, "bgColorRed", 0, 255, 1).name("Red").onChange(setBgColor);
   bgPanel
@@ -222,6 +266,7 @@ function createPanel() {
     .onChange(setBottomLightColor);
 
   additionalPanel.open();
+  typePanel.open();
   bgPanel.open();
   lightTopPanel.open();
   lightBottomPanel.open();
