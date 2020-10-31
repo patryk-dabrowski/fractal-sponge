@@ -7,14 +7,12 @@ let renderer, camera, scene, stats;
 let light;
 let cubeContainer;
 
-const showAxes = false;
-let isNormalCube = true;
-
 let canGenerate = true;
+const showAxes = true;
 
 const params = {
+  regenerate: generateMenger,
   level: 0,
-  move: 1.0,
 
   // Background Color
   bgColorRed: 0,
@@ -69,13 +67,6 @@ function onWindowsResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function getSize(d, i) {
-  if (isNormalCube) {
-    return d / 3;
-  }
-  return d / (i <= 0 ? 2 : 4);
-}
-
 function box(x, y, z, xd, yd, zd) {
   const geometry = new THREE.BoxGeometry(xd, yd, zd);
   const cube = new THREE.Mesh(geometry);
@@ -93,19 +84,18 @@ function menger(geom, n, x, y, z, xd, yd, zd) {
       for (let j = -1; j < 2; j++) {
         for (let k = -1; k < 2; k++) {
           if ((i * i + j * j) * (i * i + k * k) * (j * j + k * k) > 0) {
-            const newxd = getSize(xd, i);
-            const newyd = getSize(yd, j);
-            const newzd = getSize(zd, k);
-            menger(
-              geom,
-              n - 1,
-              x + i * newxd,
-              y + j * newyd,
-              z + k * newzd,
-              newxd,
-              newyd,
-              newzd
-            );
+            const newxd = xd / 3;
+            const newyd = yd / 3;
+            const newzd = zd / 3;
+            const newX = x + i * newxd;
+            const newY = y + j * newyd;
+            const newZ = z + k * newzd;
+
+            if (Math.random() > 0.5) {
+              menger(geom, n - 1, newX, newY, newZ, newxd, newyd, newzd);
+            } else {
+              geom.mergeMesh(box(newX, newY, newZ, newxd, newyd, newzd));
+            }
           }
         }
       }
@@ -184,14 +174,15 @@ function createStats() {
 
 function createPanel() {
   const panel = new GUI();
-  const levelPanel = panel.addFolder("");
+  const additionalPanel = panel.addFolder("");
   const bgPanel = panel.addFolder("Background color");
   const lightTopPanel = panel.addFolder("Light top");
   const lightBottomPanel = panel.addFolder("Light bottom");
 
-  levelPanel
+  additionalPanel.add(params, "regenerate").name("Regenerate");
+  additionalPanel
     .add(params, "level", 0, 3, 1)
-    .name("Menger level")
+    .name("Level")
     .onChange(generateMenger);
 
   bgPanel.add(params, "bgColorRed", 0, 255, 1).name("Red").onChange(setBgColor);
@@ -230,7 +221,7 @@ function createPanel() {
     .name("Blue")
     .onChange(setBottomLightColor);
 
-  levelPanel.open();
+  additionalPanel.open();
   bgPanel.open();
   lightTopPanel.open();
   lightBottomPanel.open();
