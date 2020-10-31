@@ -4,20 +4,88 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 
 let renderer, camera, scene, stats;
-
+let light;
 let cubeContainer;
 
 const showAxes = false;
 let isNormalCube = true;
-let level = 0;
-const MAX_LEVEL = 3;
-const MIN_LEVEL = 0;
+
+let canGenerate = true;
 
 const params = {
-  increaseLevel: increaseLevel,
-  decreaseLevel: decreaseLevel,
-  normal: normalMengerSponge,
+  level: 0,
+
+  // Background Color
+  bgColorRed: 0,
+  bgColorGreen: 0,
+  bgColorBlue: 0,
+
+  // Light Top Color
+  lightTopColorRed: 255,
+  lightTopColorGreen: 0,
+  lightTopColorBlue: 0,
+
+  // Light Bottom Color
+  lightBottomColorRed: 0,
+  lightBottomColorGreen: 0,
+  lightBottomColorBlue: 255,
 };
+
+init();
+animate();
+
+function init() {
+  createCamera();
+
+  scene = new THREE.Scene();
+
+  createLight();
+
+  if (showAxes) {
+    const axesHelper = new THREE.AxesHelper(1000);
+    scene.add(axesHelper);
+  }
+
+  cubeContainer = new THREE.Group();
+  scene.add(cubeContainer);
+
+  generateMenger();
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setClearColor(
+    `rgb(${params.bgColorRed}, ${params.bgColorGreen}, ${params.bgColorBlue})`
+  );
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  new OrbitControls(camera, renderer.domElement);
+
+  stats = new Stats();
+  document.body.appendChild(stats.dom);
+
+  createPanel();
+
+  window.addEventListener("resize", onWindowsResize, false);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  cubeContainer.rotation.x += 0.005;
+  cubeContainer.rotation.y += 0.001;
+  cubeContainer.rotation.z += 0.001;
+  renderer.render(scene, camera);
+
+  stats.update();
+}
+
+function onWindowsResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
 
 function getSize(d, i) {
   if (isNormalCube) {
@@ -64,36 +132,102 @@ function menger(geom, n, x, y, z, xd, yd, zd) {
 }
 
 function generateMenger() {
-  const geom = new THREE.Geometry();
-  const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+  if (canGenerate) {
+    canGenerate = false;
+    const geom = new THREE.Geometry();
+    const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
 
-  menger(geom, level, 0, 0, 0, 80, 80, 80);
+    menger(geom, params.level, 0, 0, 0, 80, 80, 80);
 
-  const mesh = new THREE.Mesh(geom, material);
+    const mesh = new THREE.Mesh(geom, material);
 
-  cubeContainer.remove(...cubeContainer.children);
-  cubeContainer.add(mesh);
-}
-
-function increaseLevel() {
-  if (level < MAX_LEVEL) {
-    level++;
-    generateMenger();
-  }
-}
-function decreaseLevel() {
-  if (level > MIN_LEVEL) {
-    level--;
-    generateMenger();
+    cubeContainer.remove(...cubeContainer.children);
+    cubeContainer.add(mesh);
+    canGenerate = true;
   }
 }
 
-function normalMengerSponge() {
-  isNormalCube = !isNormalCube;
-  generateMenger();
+function setBgColor() {
+  renderer.setClearColor(
+    `rgb(${params.bgColorRed}, ${params.bgColorGreen}, ${params.bgColorBlue})`
+  );
 }
 
-function init() {
+function setTopLightColor() {
+  light.color.setStyle(
+    `rgb(${params.lightTopColorRed}, ${params.lightTopColorGreen}, ${params.lightTopColorBlue})`
+  );
+}
+
+function setBottomLightColor() {
+  light.groundColor.setStyle(
+    `rgb(${params.lightBottomColorRed}, ${params.lightBottomColorGreen}, ${params.lightBottomColorBlue})`
+  );
+}
+
+function createPanel() {
+  const panel = new GUI();
+  const levelPanel = panel.addFolder("");
+  const bgPanel = panel.addFolder("Background color");
+  const lightTopPanel = panel.addFolder("Light top");
+  const lightBottomPanel = panel.addFolder("Light bottom");
+
+  levelPanel
+    .add(params, "level", 0, 3, 1)
+    .name("Menger level")
+    .onChange(generateMenger);
+
+  bgPanel.add(params, "bgColorRed", 0, 255, 1).name("Red").onChange(setBgColor);
+  bgPanel
+    .add(params, "bgColorGreen", 0, 255, 1)
+    .name("Green")
+    .onChange(setBgColor);
+  bgPanel
+    .add(params, "bgColorBlue", 0, 255, 1)
+    .name("Blue")
+    .onChange(setBgColor);
+
+  lightTopPanel
+    .add(params, "lightTopColorRed", 0, 255, 1)
+    .name("Red")
+    .onChange(setTopLightColor);
+  lightTopPanel
+    .add(params, "lightTopColorGreen", 0, 255, 1)
+    .name("Green")
+    .onChange(setTopLightColor);
+  lightTopPanel
+    .add(params, "lightTopColorBlue", 0, 255, 1)
+    .name("Blue")
+    .onChange(setTopLightColor);
+
+  lightBottomPanel
+    .add(params, "lightBottomColorRed", 0, 255, 1)
+    .name("Red")
+    .onChange(setBottomLightColor);
+  lightBottomPanel
+    .add(params, "lightBottomColorGreen", 0, 255, 1)
+    .name("Green")
+    .onChange(setBottomLightColor);
+  lightBottomPanel
+    .add(params, "lightBottomColorBlue", 0, 255, 1)
+    .name("Blue")
+    .onChange(setBottomLightColor);
+
+  levelPanel.open();
+  bgPanel.open();
+  lightTopPanel.open();
+  lightBottomPanel.open();
+}
+
+function createLight() {
+  light = new THREE.HemisphereLight();
+  light.groundColor.setStyle(`rgb(0, 0, 255)`);
+  light.color.setStyle(`rgb(255, 0, 0)`);
+  light.position.set(-1, 1.5, 1);
+  scene.add(light);
+}
+
+function createCamera() {
   camera = new THREE.PerspectiveCamera(
     70,
     window.innerWidth / window.innerHeight,
@@ -102,62 +236,4 @@ function init() {
   );
   camera.position.set(0, 0, 200);
   camera.lookAt(0, 0, 0);
-
-  scene = new THREE.Scene();
-  let light = new THREE.HemisphereLight(0xffffff, 0x000088);
-  light.position.set(-1, 1.5, 1);
-  scene.add(light);
-
-  light = new THREE.HemisphereLight(0xffffff, 0x880000, 0.5);
-  light.position.set(-1, -1.5, -1);
-  scene.add(light);
-
-  if (showAxes) {
-    const axesHelper = new THREE.AxesHelper(1000);
-    scene.add(axesHelper);
-  }
-
-  cubeContainer = new THREE.Group();
-  scene.add(cubeContainer);
-
-  generateMenger();
-
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  // renderer.setClearColor(0xe6e6ee);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  new OrbitControls(camera, renderer.domElement);
-
-  stats = new Stats();
-  document.body.appendChild(stats.dom);
-
-  const gui = new GUI();
-  gui.add(params, "increaseLevel").name("Zwiększ poziom");
-  gui.add(params, "decreaseLevel").name("Zmniejsz poziom");
-  gui.add(params, "normal").name("Zmień rodzaj");
-
-  window.addEventListener("resize", onWindowsResize, false);
 }
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  cubeContainer.rotation.x += 0.005;
-  cubeContainer.rotation.y += 0.001;
-  cubeContainer.rotation.z += 0.001;
-  renderer.render(scene, camera);
-
-  stats.update();
-}
-
-function onWindowsResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-init();
-animate();
