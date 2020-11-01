@@ -4,7 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 
 let renderer, camera, scene, stats;
-let light;
+const lights = [];
 let cubeContainer;
 
 let canGenerate = true;
@@ -26,13 +26,15 @@ const params = {
   regenerate: generate,
   changeToMenger: changeToMenger,
   changeToJeruzalem: changeToJeruzalem,
-  level: 1,
+  level: 0,
   currendSettings: MENGER_SPONGE_SETTINGS,
   invert: false,
-  randomly: true,
+  randomly: false,
+  rotateCube: true,
+  rotateLights: true,
+  showBulb: true,
   bgColor: 0x000000,
-  lightTopColor: 0xff0000,
-  lightBottomColor: 0x0000ff,
+  lights: [0xff0040, 0x0040ff, 0x80ff80, 0xffaa00],
 };
 
 init();
@@ -41,7 +43,7 @@ animate();
 function init() {
   createCamera();
   createScene();
-  createLight();
+  createLights();
   createAxes();
   createContainer();
   createRenderer();
@@ -56,13 +58,32 @@ function init() {
 
 function animate() {
   requestAnimationFrame(animate);
-
-  cubeContainer.rotation.x += 0.005;
-  cubeContainer.rotation.y += 0.001;
-  cubeContainer.rotation.z += 0.001;
-  renderer.render(scene, camera);
-
+  render();
   stats.update();
+}
+
+function render() {
+  const time = Date.now() * 0.0005;
+  if (params.rotateCube) {
+    cubeContainer.rotation.x += 0.005;
+    cubeContainer.rotation.y += 0.001;
+    cubeContainer.rotation.z += 0.001;
+  }
+
+  if (params.rotateLights) {
+    const { sin, cos } = Math;
+    const positions = [
+      [sin(time * 0.7) * 30, cos(time * 0.5) * 40, cos(time * 0.3) * 30],
+      [cos(time * 0.3) * 30, sin(time * 0.5) * 40, sin(time * 0.7) * 30],
+      [sin(time * 0.7) * 30, cos(time * 0.3) * 40, sin(time * 0.5) * 30],
+      [sin(time * 0.3) * 30, cos(time * 0.7) * 40, sin(time * 0.5) * 30],
+    ];
+
+    lights.forEach((light, index) => {
+      light.position.set(...positions[index]);
+    });
+  }
+  renderer.render(scene, camera);
 }
 
 function onWindowsResize() {
@@ -121,7 +142,7 @@ function generate() {
     const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
     const mesh = new THREE.Mesh(geom, material);
 
-    generateCube(geom, params.level, 0, 0, 0, 80, 80, 80);
+    generateCube(geom, params.level, 0, 0, 0, 40, 40, 40);
 
     cubeContainer.remove(...cubeContainer.children);
     cubeContainer.add(mesh);
@@ -144,19 +165,28 @@ function createCamera() {
     1,
     1000
   );
-  camera.position.set(0, 0, 200);
+  camera.position.set(0, 0, 100);
   camera.lookAt(0, 0, 0);
 }
 
 function createScene() {
   scene = new THREE.Scene();
 }
-function createLight() {
-  light = new THREE.HemisphereLight();
-  light.color.setHex(params.lightTopColor);
-  light.groundColor.setHex(params.lightBottomColor);
-  light.position.set(-1, 1.5, 1);
+
+function createLight(color) {
+  const sphere = new THREE.SphereBufferGeometry(0.5, 16, 8);
+  const material = new THREE.MeshBasicMaterial({ color });
+  const mesh = new THREE.Mesh(sphere, material);
+  const light = new THREE.PointLight(color, 5, 100);
+
+  light.add(mesh);
+  light.position.set(120, 120, 120);
   scene.add(light);
+  return light;
+}
+
+function createLights() {
+  params.lights.forEach((value) => lights.push(createLight(value)));
 }
 
 function createAxes() {
@@ -199,6 +229,12 @@ function createPanel() {
   additionalPanel.add(params, "regenerate").name("Regenerate");
   additionalPanel.add(params, "invert").name("Invert").onChange(generate);
   additionalPanel.add(params, "randomly").name("Randomly").onChange(generate);
+  additionalPanel.add(params, "rotateCube").name("Rotate cube");
+  additionalPanel.add(params, "rotateLights").name("Rotate lights");
+  additionalPanel
+    .add(params, "showBulb")
+    .name("Show light bulb")
+    .onChange(showLightBulb);
   additionalPanel
     .add(params, "level", 0, 3, 1)
     .name("Level")
@@ -226,15 +262,12 @@ function createPanel() {
     .name("Background")
     .onChange(setBgColor);
 
-  colorPanel
-    .addColor(params, "lightTopColor")
-    .name("Top light")
-    .onChange(setTopLightColor);
-
-  colorPanel
-    .addColor(params, "lightBottomColor")
-    .name("Bottom light")
-    .onChange(setBottomLightColor);
+  params.lights.forEach((_, index) =>
+    colorPanel
+      .addColor(params.lights, index)
+      .name(`Light ${index + 1}`)
+      .onChange(() => setLightColor(lights[index], params.lights[index]))
+  );
 
   additionalPanel.open();
   typePanel.open();
@@ -245,10 +278,11 @@ function setBgColor() {
   renderer.setClearColor(params.bgColor);
 }
 
-function setTopLightColor() {
-  light.color.setHex(params.lightTopColor);
+function setLightColor(light, color) {
+  light.color.setHex(color);
+  light.children[0].material.color.setHex(color);
 }
 
-function setBottomLightColor() {
-  light.groundColor.setHex(params.lightBottomColor);
+function showLightBulb() {
+  lights.forEach((light) => (light.children[0].visible = params.showBulb));
 }
