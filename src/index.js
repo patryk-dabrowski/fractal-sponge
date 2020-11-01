@@ -27,7 +27,7 @@ const params = {
   changeToMenger: changeToMenger,
   changeToJeruzalem: changeToJeruzalem,
   level: 0,
-  currendSettings: MENGER_SPONGE_SETTINGS,
+  currentSettings: MENGER_SPONGE_SETTINGS,
   invert: false,
   randomly: false,
   rotateCube: true,
@@ -106,7 +106,7 @@ function generateCube(geom, n, x, y, z, xd, yd, zd) {
     // Merge boxes to improve performence
     geom.mergeMesh(box(x, y, z, xd, yd, zd));
   } else {
-    const { range, parts, condition } = params.currendSettings;
+    const { range, parts, condition } = params.currentSettings;
 
     for (let i = -range; i <= range; i++) {
       for (let j = -range; j <= range; j++) {
@@ -151,11 +151,11 @@ function generate() {
 }
 
 function changeToMenger() {
-  params.currendSettings = MENGER_SPONGE_SETTINGS;
+  params.currentSettings = MENGER_SPONGE_SETTINGS;
 }
 
 function changeToJeruzalem() {
-  params.currendSettings = JERUZALEM_CUBE_SETTINGS;
+  params.currentSettings = JERUZALEM_CUBE_SETTINGS;
 }
 
 function createCamera() {
