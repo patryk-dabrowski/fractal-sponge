@@ -3,12 +3,11 @@ import Stats from "three/examples/jsm/libs/stats.module";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GUI } from "three/examples/jsm/libs/dat.gui.module";
 
-let renderer, camera, scene, stats;
-const lights = [];
-let cubeContainer;
 
+let renderer, camera, scene, stats, cubeContainer;
 let canGenerate = true;
-const showAxes = true;
+const lights = [];
+const showAxes = false;
 
 const MENGER_SPONGE_SETTINGS = {
   range: 1,
@@ -40,6 +39,10 @@ const params = {
 init();
 animate();
 
+/**
+ * Initial function, which set up project
+ * @returns {void}
+ */
 function init() {
   createCamera();
   createScene();
@@ -56,12 +59,20 @@ function init() {
   window.addEventListener("resize", onWindowsResize, false);
 }
 
+/**
+ * Used to update animation, called on every frame
+ * @returns {void}
+ */
 function animate() {
   requestAnimationFrame(animate);
   render();
   stats.update();
 }
 
+/**
+ * Make elements more interactive
+ * @returns {void}
+ */
 function render() {
   const time = Date.now() * 0.0005;
   if (params.rotateCube) {
@@ -86,6 +97,10 @@ function render() {
   renderer.render(scene, camera);
 }
 
+/**
+ * Called on windows resize
+ * @returns {void}
+ */
 function onWindowsResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -93,40 +108,57 @@ function onWindowsResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function box(x, y, z, xd, yd, zd) {
-  const geometry = new THREE.BoxGeometry(xd, yd, zd);
+/**
+ * Box constructor
+ * @param {THREE.Vector3} position
+ * @param {THREE.Vector3} size
+ * @returns {void}
+ */
+function box(position, size) {
+  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
   const cube = new THREE.Mesh(geometry);
 
-  cube.position.set(x, y, z);
+  cube.position.copy(position);
   return cube;
 }
 
-function generateCube(geom, n, x, y, z, xd, yd, zd) {
+/**
+ * Generate cube recursively
+ * @param {THREE.Geometry} geom
+ * @param {Number} n
+ * @param {THREE.Vector3} position
+ * @param {THREE.Vector3} size
+ * @returns {void}
+ */
+function generateCube(geom, n, position, size) {
   if (n === 0) {
     // Merge boxes to improve performence
-    geom.mergeMesh(box(x, y, z, xd, yd, zd));
+    geom.mergeMesh(box(position, size));
   } else {
     const { range, parts, condition } = params.currentSettings;
+    const { invert } = params;
 
     for (let i = -range; i <= range; i++) {
       for (let j = -range; j <= range; j++) {
         for (let k = -range; k <= range; k++) {
           const cond = (i * i + j * j) * (i * i + k * k) * (j * j + k * k);
-          if (
-            (!params.invert && condition(cond)) ||
-            (params.invert && !condition(cond))
-          ) {
-            const newxd = xd / parts;
-            const newyd = yd / parts;
-            const newzd = zd / parts;
-            const newX = x + i * newxd;
-            const newY = y + j * newyd;
-            const newZ = z + k * newzd;
+
+          if ((!invert && condition(cond)) || (invert && !condition(cond))) {
+            const newSize = new THREE.Vector3(
+              size.x / parts,
+              size.y / parts,
+              size.z / parts
+            );
+            const newPosition = new THREE.Vector3(
+              position.x + i * newSize.x,
+              position.y + j * newSize.y,
+              position.z + k * newSize.z
+            );
 
             if (Math.random() > 0.5 || !params.randomly) {
-              generateCube(geom, n - 1, newX, newY, newZ, newxd, newyd, newzd);
+              generateCube(geom, n - 1, newPosition, newSize);
             } else {
-              geom.mergeMesh(box(newX, newY, newZ, newxd, newyd, newzd));
+              geom.mergeMesh(box(newPosition, newSize));
             }
           }
         }
@@ -135,6 +167,10 @@ function generateCube(geom, n, x, y, z, xd, yd, zd) {
   }
 }
 
+/**
+ * Generate cube
+ * @returns {void}
+ */
 function generate() {
   if (canGenerate) {
     canGenerate = false;
@@ -142,7 +178,10 @@ function generate() {
     const material = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
     const mesh = new THREE.Mesh(geom, material);
 
-    generateCube(geom, params.level, 0, 0, 0, 40, 40, 40);
+    const position = new THREE.Vector3(0, 0, 0);
+    const size = new THREE.Vector3(40, 40, 40);
+
+    generateCube(geom, params.level, position, size);
 
     cubeContainer.remove(...cubeContainer.children);
     cubeContainer.add(mesh);
@@ -150,14 +189,26 @@ function generate() {
   }
 }
 
+/**
+ * Change cube to menger sponge
+ * @returns {void}
+ */
 function changeToMenger() {
   params.currentSettings = MENGER_SPONGE_SETTINGS;
 }
 
+/**
+ * Change cube to jeruzalem
+ * @returns {void}
+ */
 function changeToJeruzalem() {
   params.currentSettings = JERUZALEM_CUBE_SETTINGS;
 }
 
+/**
+ * Create camera instance
+ * @returns {void}
+ */
 function createCamera() {
   camera = new THREE.PerspectiveCamera(
     70,
@@ -169,10 +220,19 @@ function createCamera() {
   camera.lookAt(0, 0, 0);
 }
 
+/**
+ * Create scene instance
+ * @returns {void}
+ */
 function createScene() {
   scene = new THREE.Scene();
 }
 
+/**
+ * Create light bulb
+ * @param {*} color light color
+ * @returns {THREE.PointLight}
+ */
 function createLight(color) {
   const sphere = new THREE.SphereBufferGeometry(0.5, 16, 8);
   const material = new THREE.MeshBasicMaterial({ color });
@@ -185,10 +245,18 @@ function createLight(color) {
   return light;
 }
 
+/**
+ * Generate all lights
+ * @returns {void}
+ */
 function createLights() {
   params.lights.forEach((value) => lights.push(createLight(value)));
 }
 
+/**
+ * Create axes depends on the flag
+ * @returns {void}
+ */
 function createAxes() {
   if (showAxes) {
     const axesHelper = new THREE.AxesHelper(1000);
@@ -196,11 +264,19 @@ function createAxes() {
   }
 }
 
+/**
+ * Create group container
+ * @returns {void}
+ */
 function createContainer() {
   cubeContainer = new THREE.Group();
   scene.add(cubeContainer);
 }
 
+/**
+ * Create renderer
+ * @returns {void}
+ */
 function createRenderer() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setClearColor(
@@ -211,15 +287,27 @@ function createRenderer() {
   document.body.appendChild(renderer.domElement);
 }
 
+/**
+ * Create control instance which allow as to change camera position
+ * @returns {void}
+ */
 function createOrbitControls() {
   new OrbitControls(camera, renderer.domElement);
 }
 
+/**
+ * Create stats
+ * @returns {void}
+ */
 function createStats() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 }
 
+/**
+ * Create gui panel
+ * @returns {void}
+ */
 function createPanel() {
   const panel = new GUI();
   const additionalPanel = panel.addFolder("");
@@ -274,15 +362,29 @@ function createPanel() {
   colorPanel.open();
 }
 
+/**
+ * Change background color
+ * @returns {void}
+ */
 function setBgColor() {
   renderer.setClearColor(params.bgColor);
 }
 
+/**
+ * Change light color
+ * @param {THREE.PointLight} light
+ * @param {Number} color
+ * @returns {void}
+ */
 function setLightColor(light, color) {
   light.color.setHex(color);
   light.children[0].material.color.setHex(color);
 }
 
+/**
+ * Show or hide lights bulb
+ * @returns {void}
+ */
 function showLightBulb() {
   lights.forEach((light) => (light.children[0].visible = params.showBulb));
 }
